@@ -50,11 +50,12 @@ You MUST segment the draft into individual posts. For each post, you MUST respon
 
   let attempts = 0;
   const maxAttempts = 3;
+  let currentModel = 'gemini-2.5-flash';
 
   while (attempts < maxAttempts) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: currentModel,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -72,9 +73,17 @@ You MUST segment the draft into individual posts. For each post, you MUST respon
       if (attempts >= maxAttempts) {
         throw new Error('Failed to generate optimized content from AI after multiple attempts due to server overload.');
       }
+
+      // If the model is experiencing high demand (503), switch to a stable fallback model
+      if (error.message && (error.message.includes('503') || error.message.includes('UNAVAILABLE') || error.message.includes('high demand'))) {
+        console.log(`Model ${currentModel} is overloaded. Falling back to gemini-1.5-flash.`);
+        currentModel = 'gemini-1.5-flash';
+      }
       
-      // Wait for 2.5 seconds before retrying
-      await new Promise(resolve => setTimeout(resolve, 2500));
+      // Exponential backoff: 2s, 4s (plus a little jitter)
+      const waitTime = Math.pow(2, attempts) * 1000 + Math.random() * 500;
+      console.log(`Waiting ${Math.round(waitTime)}ms before next attempt...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   }
 }
