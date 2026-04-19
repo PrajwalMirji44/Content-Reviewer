@@ -17,7 +17,7 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!draftRef.current.value) return alert('Please enter your post drafts.');
-    if (!fileRef.current.files[0]) {
+    if (!fileRef.current.files || fileRef.current.files.length === 0) {
       return alert('Please upload your strategy PDF.');
     }
     
@@ -30,8 +30,10 @@ function App() {
     formData.append('targetAudience', audienceRef.current.value);
     formData.append('contentGoal', goalRef.current.value);
     
-    if (fileRef.current.files[0]) {
-      formData.append('guidelinePdf', fileRef.current.files[0]);
+    if (fileRef.current.files.length > 0) {
+      Array.from(fileRef.current.files).forEach(file => {
+        formData.append('guidelinePdfs', file);
+      });
     }
 
     // Dynamic loading text to improve perceived performance
@@ -184,18 +186,26 @@ function App() {
 
             <div className="form-group">
               <label>
-                4. Guideline Document (PDF)
+                4. Guideline Documents (PDF)
               </label>
               <div className="file-upload">
                 <input 
                   type="file" 
                   accept=".pdf" 
+                  multiple
                   ref={fileRef}
-                  onChange={(e) => setFileName(e.target.files[0]?.name || '')}
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files);
+                    if (files.length > 0) {
+                      setFileName(files.map(f => f.name).join(', '));
+                    } else {
+                      setFileName('');
+                    }
+                  }}
                 />
                 <UploadCloud size={32} color="var(--primary)" style={{ marginBottom: '10px' }} />
                 <p>
-                  {fileName ? fileName : 'Click to Upload the Guideline Doc'}
+                  {fileName ? fileName : 'Click to Upload Guideline Doc(s)'}
                 </p>
               </div>
             </div>

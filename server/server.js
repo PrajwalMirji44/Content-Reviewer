@@ -17,7 +17,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-app.post('/api/optimize', upload.single('guidelinePdf'), async (req, res) => {
+app.post('/api/optimize', upload.array('guidelinePdfs', 10), async (req, res) => {
   try {
     const { postDraft, targetAudience, contentGoal, guidelineText } = req.body;
     
@@ -25,17 +25,23 @@ app.post('/api/optimize', upload.single('guidelinePdf'), async (req, res) => {
       return res.status(400).json({ error: 'Post draft is required.' });
     }
 
-    let guidelinesText = guidelineText || 'No guidelines provided.';
+    let guidelinesText = guidelineText || '';
 
-    // Extract text from PDF if it exists
-    if (req.file) {
+    // Extract text from PDFs if they exist
+    if (req.files && req.files.length > 0) {
       try {
-        const pdfData = await pdfParse(req.file.buffer);
-        guidelinesText = pdfData.text;
+        for (const file of req.files) {
+          const pdfData = await pdfParse(file.buffer);
+          guidelinesText += `\n--- Document: ${file.originalname} ---\n${pdfData.text}\n`;
+        }
       } catch (err) {
         console.error('Error parsing PDF:', err);
-        return res.status(400).json({ error: 'Failed to extract text from the provided PDF.' });
+        return res.status(400).json({ error: 'Failed to extract text from the provided PDFs.' });
       }
+    }
+
+    if (!guidelinesText.trim()) {
+      guidelinesText = 'No guidelines provided.';
     }
 
     // Call AI Service
